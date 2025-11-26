@@ -27,30 +27,28 @@ const Home = () => {
       }
     }
   }, []);
-const checkStripeAccount = async (token) => {
-  try {
-    const response = await axios.post("/api/withdrawal/connect-account", {
-      token: token,
-    });
+  const checkStripeAccount = async () => {
+    try {
+      const response = await axios.post("/api/withdrawal/connect-account", {
+        token:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjA3NTAyZGU4MGY0YWE2OTcwZTcyYSIsImVtYWlsIjoiamhvbnVzZXIxMjZAeW9wbWFpbC5jb20iLCJpYXQiOjE3NjM3MzQ3ODZ9.hBOCJcvUM6EzktD4gb6bbfQVT0n1qFne7vT19m3PbRE",
+      });
 
-    const { onboardingUrl } = response?.data?.data || {};
+      const { onboardingUrl } = response?.data?.data || {};
 
-    if (onboardingUrl) {
-      // 👇 Redirect user to Stripe
-      window.location.href = onboardingUrl;
-    } 
-    // else: Do nothing — user stripe completed
-
-  } catch (error) {
-    console.log("Stripe connect check error:", error);
-  }
-};
+      if (onboardingUrl) {
+        window.location.href = onboardingUrl;
+      }
+    } catch (error) {
+      console.log("Stripe connect check error:", error);
+    }
+  };
 
   const handleRedirect = async () => {
     try {
-      const response = await axios.post("/inapp/accountLink");
+      const response = await axios.post("/api/withdrawal/account-status ");
       if (response?.status === 200) {
-        window.location.href = response?.data?.data?.url;
+        // window.location.href = response?.data?.data?.url;
       }
     } catch (error) {
       console.log(error?.response?.data?.message);
@@ -60,16 +58,15 @@ const checkStripeAccount = async (token) => {
   const getWallet = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/inApp/getWallet");
+      const response = await axios.get("/api/withdrawal/account-status");
       if (response.status === 200) {
-        const isStripeCompleted = response?.data?.data?.isStripeProfileCompleted;
-        setWalletData(response?.data?.data);
+        console.log(response, "Response Data Wallet");
 
-        if (!isStripeCompleted) {
-          handleRedirect();
-        } else {
-          await getBank();
-        }
+        // if (!isStripeCompleted) {
+        //   handleRedirect();
+        // } else {
+        //   await getBank();
+        // }
       }
     } catch (error) {
       console.log("Error fetching wallet:", error);
@@ -117,14 +114,17 @@ const checkStripeAccount = async (token) => {
       });
 
       if (response?.status === 200) {
-        SuccessToast(`You’ve requested to withdraw ${withdrawAmount}. Your request is now under review.`);
+        SuccessToast(
+          `You’ve requested to withdraw ${withdrawAmount}. Your request is now under review.`
+        );
         setAmount("");
         // getWallet();
       }
     } catch (error) {
       console.log("Withdraw error:", error);
       ErrorToast(
-        error?.response?.data?.message || "Something went wrong with withdrawal."
+        error?.response?.data?.message ||
+          "Something went wrong with withdrawal."
       );
     } finally {
       setWithdrawLoading(false);
@@ -134,7 +134,8 @@ const checkStripeAccount = async (token) => {
   useEffect(() => {
     if (token) {
       // getWallet();
-      checkStripeAccount()
+      // handleRedirect()
+      checkStripeAccount();
     }
   }, [token]);
 
@@ -150,14 +151,18 @@ const checkStripeAccount = async (token) => {
   return (
     <div className="flex justify-center items-center min-h-screen bg-white">
       <div className="w-[390px] h-[722px] bg-white text-white rounded-[40px]  overflow-hidden relative shadow-2xl px-6 mt-4">
-        <h2 className="text-xl font-semibold mb-4 mt-4 text-center">Withdraw</h2>
+        <h2 className="text-xl font-semibold mb-4 mt-4 text-center">
+          Withdraw
+        </h2>
 
         {loading ? (
           <Skeleton />
         ) : (
           <>
             <div className="mb-6">
-              <p className="text-black text-[14px] font-[500] mb-1">Attached Bank Account</p>
+              <p className="text-black text-[14px] font-[500] mb-1">
+                Attached Bank Account
+              </p>
               <div className="bg-white rounded-xl border border-black px-4 py-3 text-black select-none flex justify-between items-center">
                 <span>
                   {bankData?.[0]?.routing_number
@@ -169,7 +174,9 @@ const checkStripeAccount = async (token) => {
 
             {/* Balance */}
             <div className="mb-6">
-              <p className="text-black text-[14px] font-[500] mb-1">Available Balance</p>
+              <p className="text-black text-[14px] font-[500] mb-1">
+                Available Balance
+              </p>
               <p className="text-lg text-black font-semibold">
                 {walletData?.diamonds} {walletData?.dollars} USD
               </p>
@@ -177,7 +184,9 @@ const checkStripeAccount = async (token) => {
 
             {/* Enter Amount */}
             <div className="mb-8">
-              <p className="text-black text-[14px] font-[500] mb-1">Enter Amount</p>
+              <p className="text-black text-[14px] font-[500] mb-1">
+                Enter Amount
+              </p>
               <div className="bg-white border border-black rounded-xl px-4 py-3 text-lg font-semibold text-white flex justify-between items-center">
                 <input
                   type="number"

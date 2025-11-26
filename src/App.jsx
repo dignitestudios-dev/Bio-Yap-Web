@@ -1,8 +1,10 @@
 import { Route, Routes } from "react-router";
 import "./App.css";
 import Home from "./pages/app/Home";
-
+import axios from "./axios";
+import { useEffect } from "react";
 function App() {
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />
