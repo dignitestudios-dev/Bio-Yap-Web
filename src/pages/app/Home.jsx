@@ -4,17 +4,17 @@ import Cookies from "js-cookie";
 import { ErrorToast, SuccessToast } from "../../components/global/Toaster";
 
 const Home = () => {
-  const [amount, setAmount] = useState("");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
-  const [walletData, setWalletData] = useState(null);
-  const [bankData, setBankData] = useState([]);
+  const [convertLoading, setConvertLoading] = useState(false);
+  const [convertCoins, setConvertCoins] = useState("");
+  const [wallet, setWallet] = useState(null);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   useEffect(() => {
     const path = window.location.pathname;
     const possibleToken = path.replace("/", "");
-
     if (possibleToken && possibleToken.length > 10) {
       localStorage.setItem("authToken", possibleToken);
       Cookies.set("token", possibleToken);
@@ -27,46 +27,29 @@ const Home = () => {
       }
     }
   }, []);
+
   const checkStripeAccount = async () => {
     try {
       const response = await axios.post("/api/withdrawal/connect-account", {
-        token:
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzI2OWUyNWU2NDUwODI4NjUzNzcwYyIsImVtYWlsIjoiYWxpY2VAeW9wbWFpbC5jb20iLCJpYXQiOjE3NjQzMjYwMDh9.vbwQEZzWIDnk_1Kg2_TyrhKGztYT-r5gsWYgUYQ9vzw",
+        token: token,
       });
-
       const { onboardingUrl } = response?.data?.data || {};
-
-      if (onboardingUrl) {
-        window.location.href = onboardingUrl;
-      }
+      if (onboardingUrl) window.location.href = onboardingUrl;
     } catch (error) {
       console.log("Stripe connect check error:", error);
-    }
-  };
-
-  const handleRedirect = async () => {
-    try {
-      const response = await axios.post("/api/withdrawal/account-status ");
-      if (response?.status === 200) {
-        // window.location.href = response?.data?.data?.url;
-      }
-    } catch (error) {
-      console.log(error?.response?.data?.message);
     }
   };
 
   const getWallet = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/withdrawal/account-status");
+      const response = await axios.get("/api/inApp/getWallet");
       if (response.status === 200) {
-        console.log(response, "Response Data Wallet");
-
-        // if (!isStripeCompleted) {
-        //   handleRedirect();
-        // } else {
-        //   await getBank();
-        // }
+        const walletData = response.data.data;
+        if (walletData) {
+          if (!walletData.stripeConnectedAccountId) checkStripeAccount();
+          setWallet(walletData);
+        }
       }
     } catch (error) {
       console.log("Error fetching wallet:", error);
@@ -75,83 +58,65 @@ const Home = () => {
     }
   };
 
-  const getBank = async () => {
-    try {
-      const response = await axios.get("/inapp/bank");
-      if (response?.status === 200) {
-        setBankData(response?.data?.data);
-      }
-    } catch (error) {
-      console.log("Error fetching bank data:", error);
-    }
-  };
+  useEffect(() => {
+    if (token) getWallet();
+  }, [token]);
 
   const handleWithdraw = async () => {
-    const withdrawAmount = parseFloat(amount);
-
-    if (!amount || withdrawAmount <= 0) {
-      ErrorToast("Please enter a valid amount.");
-      return;
-    }
-
-    if (withdrawAmount > (walletData?.dollars || 0)) {
-      ErrorToast(
-        `You cannot withdraw more than your available balance (${walletData?.dollars} USD).`
-      );
-      return;
-    }
-
-    if (!bankData?.[0]?._id) {
-      ErrorToast("No bank account linked.");
-      return;
-    }
+    const numDiamonds = Number(withdrawAmount);
+    if (!numDiamonds || numDiamonds <= 0)
+      return ErrorToast("Enter valid amount.");
+    if (numDiamonds > wallet?.diamonds)
+      return ErrorToast("Not enough diamonds.");
 
     setWithdrawLoading(true);
     try {
-      const response = await axios.post("/inapp/withdraw", {
-        bankAccount: bankData[0]._id,
-        ammount: withdrawAmount,
+      const response = await axios.post("/api/withdrawal/request", {
+        diamonds: numDiamonds,
       });
-
-      if (response?.status === 200) {
-        SuccessToast(
-          `You’ve requested to withdraw ${withdrawAmount}. Your request is now under review.`
-        );
-        setAmount("");
-        // getWallet();
-      }
+      SuccessToast(response?.data?.message || "Withdraw request successful.");
+      setWithdrawAmount("");
+      getWallet();
     } catch (error) {
-      console.log("Withdraw error:", error);
-      ErrorToast(
-        error?.response?.data?.message ||
-          "Something went wrong with withdrawal."
-      );
+      ErrorToast(error?.response?.data?.message || "Withdraw request failed.");
     } finally {
       setWithdrawLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      // getWallet();
-      // handleRedirect()
-      checkStripeAccount();
+  const handleConvert = async () => {
+    const numCoins = Number(convertCoins);
+    if (!numCoins || numCoins <= 0) return ErrorToast("Enter valid coins.");
+    if (numCoins > wallet?.coins) return ErrorToast("Not enough coins.");
+
+    setConvertLoading(true);
+    try {
+      const response = await axios.post("/api/inApp/convertCoinsToDiamonds", {
+        coins: numCoins,
+      });
+      SuccessToast(response?.data?.message || "Coins converted successfully!");
+      setConvertCoins("");
+      getWallet();
+    } catch (error) {
+      ErrorToast(error?.response?.data?.message || "Conversion failed.");
+    } finally {
+      setConvertLoading(false);
     }
-  }, [token]);
+  };
 
   const Skeleton = () => (
     <div className="animate-pulse space-y-4">
-      <div className="h-6 bg-gray-700 rounded w-2/3"></div>
-      <div className="h-10 bg-gray-700 rounded w-full"></div>
-      <div className="h-6 bg-gray-700 rounded w-1/2"></div>
-      <div className="h-12 bg-gray-700 rounded w-full"></div>
+      <div className="h-6 bg-gray-300 rounded w-2/3"></div>
+      <div className="h-10 bg-gray-300 rounded w-full"></div>
+      <div className="h-6 bg-gray-300 rounded w-1/2"></div>
+      <div className="h-12 bg-gray-300 rounded w-full"></div>
     </div>
   );
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-white">
-      <div className="w-[390px] h-[722px] bg-white text-white rounded-[40px]  overflow-hidden relative shadow-2xl px-6 mt-4">
-        <h2 className="text-xl font-semibold mb-4 mt-4 text-center">
+    <div className="flex justify-center items-center min-h-screen bg-[#F2F4FF]">
+      <div className="w-[390px] bg-white rounded-[40px] shadow-2xl px-6 py-6 mt-4">
+        <h2 className="text-2xl font-bold text-center text-[#333] mb-6">
           Withdraw
         </h2>
 
@@ -159,66 +124,82 @@ const Home = () => {
           <Skeleton />
         ) : (
           <>
-            <div className="mb-6">
-              <p className="text-black text-[14px] font-[500] mb-1">
-                Attached Bank Account
-              </p>
-              <div className="bg-white rounded-xl border border-black px-4 py-3 text-black select-none flex justify-between items-center">
-                <span>
-                  {bankData?.[0]?.routing_number
-                    ? `**** **** **** ${bankData[0].routing_number.slice(-4)}`
-                    : "**** **** **** ****"}
-                </span>
+            {/* Wallet Card */}
+            <div className="bg-gradient-to-r from-[#FFFAE5] to-[#FFF1C2] rounded-3xl p-5 mb-8 shadow-lg">
+              <div className="space-y-3">
+               
+                <div className="flex justify-between items-center">
+                  <p className="text-[#555] text-[15px]">Diamonds</p>
+                  <p className="text-xl font-bold text-[#333]">
+                    {wallet?.diamonds ?? 0}
+                  </p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[#555] text-[15px]">Diamonds Value</p>
+                  <p className="text-xl font-bold text-[#333]">
+                    ${wallet?.diamondsValueInUSD ?? 0}
+                  </p>
+                </div>
+               
               </div>
             </div>
 
-            {/* Balance */}
-            <div className="mb-6">
-              <p className="text-black text-[14px] font-[500] mb-1">
-                Available Balance
+            {/* Convert Coins */}
+            {/* <div className="mb-6">
+              <p className="text-[#444] text-[15px] mb-1 font-medium">
+                Convert Coins to Diamonds
               </p>
-              <p className="text-lg text-black font-semibold">
-                {walletData?.diamonds} {walletData?.dollars} USD
-              </p>
-            </div>
-
-            {/* Enter Amount */}
-            <div className="mb-8">
-              <p className="text-black text-[14px] font-[500] mb-1">
-                Enter Amount
-              </p>
-              <div className="bg-white border border-black rounded-xl px-4 py-3 text-lg font-semibold text-white flex justify-between items-center">
+              <div className="flex items-center bg-[#F7F7FF] rounded-2xl px-4 py-3 shadow-sm border border-[#E0E0FF]">
                 <input
                   type="number"
                   min="0"
-                  max={walletData?.dollars || 0}
-                  value={amount}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (parseFloat(val) > (walletData?.dollars || 0)) {
-                      setAmount((walletData?.dollars || 0).toString());
-                    } else {
-                      setAmount(val);
-                    }
-                  }}
-                  placeholder="0.00"
-                  className="bg-transparent outline-none w-full text-black placeholder-gray-500"
-                  disabled={withdrawLoading}
+                  value={convertCoins}
+                  onChange={(e) => setConvertCoins(e.target.value)}
+                  placeholder="Enter coins"
+                  className="bg-transparent outline-none w-full text-[#333] placeholder-gray-400"
                 />
-                <span className="text-gray-400 ml-2">USD</span>
+                <span className="text-gray-400 ml-2">Coins</span>
+              </div>
+              <button
+                onClick={handleConvert}
+                className="w-full py-3 mt-3 rounded-2xl bg-[#FFDF7F] text-[#333] font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center"
+              >
+                {convertLoading ? (
+                  <div className="h-5 w-5 border-2 border-[#333] border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  "Convert"
+                )}
+              </button>
+            </div> */}
+
+            {/* Withdraw Section */}
+            {/* Withdraw Section */}
+            <div className="mb-6">
+              <p className="text-[#444] text-[15px] mb-1 font-medium">
+                Enter Diamonds to Withdraw
+              </p>
+              <div className="flex items-center bg-[#F7F7FF] rounded-2xl px-4 py-3 shadow-sm border border-[#E0E0FF]">
+                <input
+                  type="number"
+                  min="0"
+                  max={wallet?.diamonds ?? 0}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="bg-transparent outline-none w-full text-[#333] placeholder-gray-400"
+                />
+                <span className="text-gray-400 ml-2">Diamonds</span>
               </div>
             </div>
-
             <button
               onClick={handleWithdraw}
-              disabled={withdrawLoading || !amount || parseFloat(amount) <= 0}
-              className={`w-full py-4 rounded-full text-black font-semibold text-lg bg-[#B6FF6F] shadow-md active:scale-95 transition-transform duration-150 ${
-                withdrawLoading || !amount || parseFloat(amount) <= 0
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
+              className="w-full py-4 rounded-2xl bg-[#C6FF9F] text-[#333] font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center"
             >
-              {withdrawLoading ? "Processing..." : "Test Withdraw"}
+              {withdrawLoading ? (
+                <div className="h-5 w-5 border-2 border-[#333] border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                "Withdraw"
+              )}
             </button>
           </>
         )}
