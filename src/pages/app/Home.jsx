@@ -29,7 +29,7 @@ const Home = () => {
   }, []);
   const checkStripeAccount = async () => {
     try {
-      const response = await axios.post("/withdrawal/connect-account", {
+      const response = await axios.post("/api/withdrawal/connect-account", {
         token:
           "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzI2OWUyNWU2NDUwODI4NjUzNzcwYyIsImVtYWlsIjoiYWxpY2VAeW9wbWFpbC5jb20iLCJpYXQiOjE3NjQzMjYwMDh9.vbwQEZzWIDnk_1Kg2_TyrhKGztYT-r5gsWYgUYQ9vzw",
       });
