@@ -31,7 +31,7 @@ const Home = () => {
     try {
       const response = await axios.post("/api/withdrawal/connect-account", {
         token:
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MjA3NTAyZGU4MGY0YWE2OTcwZTcyYSIsImVtYWlsIjoiamhvbnVzZXIxMjZAeW9wbWFpbC5jb20iLCJpYXQiOjE3NjM3MzQ3ODZ9.hBOCJcvUM6EzktD4gb6bbfQVT0n1qFne7vT19m3PbRE",
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YzI2OWUyNWU2NDUwODI4NjUzNzcwYyIsImVtYWlsIjoiYWxpY2VAeW9wbWFpbC5jb20iLCJpYXQiOjE3NjQzMjYwMDh9.vbwQEZzWIDnk_1Kg2_TyrhKGztYT-r5gsWYgUYQ9vzw",
       });
 
       const { onboardingUrl } = response?.data?.data || {};
